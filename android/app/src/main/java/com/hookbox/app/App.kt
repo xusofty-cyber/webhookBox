@@ -11,7 +11,9 @@ class App : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        db = Room.databaseBuilder(this, AppDatabase::class.java, "hookbox.db").build()
+        db = Room.databaseBuilder(this, AppDatabase::class.java, "hookbox.db")
+            .addMigrations(AppDatabase.MIGRATION_1_2)
+            .build()
         settings = SettingsStore(this)
         createChannels()
     }

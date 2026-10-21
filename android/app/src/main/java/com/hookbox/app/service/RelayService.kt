@@ -18,6 +18,7 @@ import com.hookbox.app.App
 import com.hookbox.app.R
 import com.hookbox.app.data.Message
 import com.hookbox.app.net.ConnState
+import com.hookbox.app.net.HistoryFetcher
 import com.hookbox.app.net.RelayConnection
 import com.hookbox.app.net.describe
 import com.hookbox.app.ui.MainActivity
@@ -65,6 +66,10 @@ class RelayService : LifecycleService() {
         super.onDestroy()
     }
 
+    /** 本次连接是否已经补拉过历史，断开后复位，下次重连再补 */
+    @Volatile
+    private var backfilled = false
+
     private suspend fun loop() {
         while (true) {
             val config = App.settings.config.first()
@@ -83,6 +88,20 @@ class RelayService : LifecycleService() {
                 onState = { state ->
                     updateState(state)
                     updateOngoing(state.describe())
+                    if (state == ConnState.Connected) {
+                        if (!backfilled) {
+                            backfilled = true
+                            lifecycleScope.launch {
+                                runCatching {
+                                    HistoryFetcher.fetchRecent(config.baseUrl, config.token) { message ->
+                                        withContext(Dispatchers.IO) { App.db.messageDao().insert(message) }
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        backfilled = false
+                    }
                 },
             ).run()
         }
@@ -102,6 +121,7 @@ class RelayService : LifecycleService() {
             body = data.optString("body"),
             level = data.optString("level", "info"),
             ts = data.optLong("ts", System.currentTimeMillis()),
+            raw = data.optString("raw"),
         )
 
         lifecycleScope.launch {
@@ -123,7 +143,7 @@ class RelayService : LifecycleService() {
                 else NotificationCompat.PRIORITY_DEFAULT,
             )
             .setAutoCancel(true)
-            .setContentIntent(openAppIntent())
+            .setContentIntent(openAppIntent(message.id))
             .build()
 
         runCatching { NotificationManagerCompat.from(this).notify(message.id.hashCode(), notification) }
@@ -164,12 +184,19 @@ class RelayService : LifecycleService() {
         stopSelf()
     }
 
-    private fun openAppIntent(): PendingIntent = PendingIntent.getActivity(
-        this,
-        0,
-        Intent(this, MainActivity::class.java),
-        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-    )
+    /** 点消息通知直达该消息的详情页；常驻通知不带 id，只打开 App */
+    private fun openAppIntent(messageId: String? = null): PendingIntent {
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            if (messageId != null) putExtra(MainActivity.EXTRA_MESSAGE_ID, messageId)
+        }
+        return PendingIntent.getActivity(
+            this,
+            messageId?.hashCode() ?: 0,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
 
     private fun canPostNotifications(): Boolean =
         Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||

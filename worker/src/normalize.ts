@@ -7,7 +7,14 @@ export interface RelayMessage {
   body: string;
   level: "info" | "warn" | "error";
   ts: number;
+  /** 原始请求体全文。归一化后的 title/body 是给列表预览用的，
+   *  完整内容靠 raw 透传到 App 详情页，不能在这里截断丢掉。 */
+  raw: string;
 }
+
+/** 正文上限：只防极端大 payload 撑爆广播帧，正常 webhook 远达不到 */
+const BODY_MAX = 20_000;
+const TITLE_MAX = 300;
 
 type AnyPayload = Record<string, any>;
 
@@ -53,16 +60,17 @@ export async function normalize(
         body = `${p.action}: ${p.release?.tag_name ?? ""}`;
         break;
       default:
-        body = p.action ?? JSON.stringify(p).slice(0, 200);
+        body = p.action ?? JSON.stringify(p);
     }
 
     return {
       id,
       source: "github",
-      title: repo ? `GitHub · ${repo}` : `GitHub · ${event}`,
-      body: clamp(body),
+      title: clamp(repo ? `GitHub · ${repo}` : `GitHub · ${event}`, TITLE_MAX),
+      body: clamp(body, BODY_MAX),
       level,
       ts,
+      raw: rawBody,
     };
   }
 
@@ -78,9 +86,10 @@ export async function normalize(
   return {
     id,
     source,
-    title: clamp(p.title ?? p.subject ?? p.name ?? `${source} 通知`, 120),
-    body: clamp(p.body ?? p.text ?? p.message ?? p.content ?? ""),
+    title: clamp(p.title ?? p.subject ?? p.name ?? `${source} 通知`, TITLE_MAX),
+    body: clamp(p.body ?? p.text ?? p.message ?? p.content ?? "", BODY_MAX),
     level,
     ts: Number(p.ts ?? p.timestamp ?? ts) || ts,
+    raw: rawBody,
   };
 }

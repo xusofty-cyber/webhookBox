@@ -37,7 +37,7 @@ export default {
       const before = Number(url.searchParams.get("before") ?? Date.now());
       const limit = Math.min(Number(url.searchParams.get("limit") ?? 50) || 50, 200);
       const { results } = await env.DB.prepare(
-        `SELECT id, source, title, body, level, ts
+        `SELECT id, source, title, body, level, ts, raw
            FROM messages
           WHERE ts < ?
           ORDER BY ts DESC

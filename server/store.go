@@ -15,6 +15,9 @@ type Message struct {
 	Body   string `json:"body"`
 	Level  string `json:"level"`
 	Ts     int64  `json:"ts"`
+	// Raw 是原始请求体全文：title/body 是归一化后的预览，
+	// 完整内容靠 Raw 透传到 App 详情页展示。
+	Raw string `json:"raw"`
 }
 
 type Store struct {
@@ -57,9 +60,14 @@ func (s *Store) Close() error { return s.db.Close() }
 
 // Insert 返回 false 表示这条消息已经存在（平台重投）
 func (s *Store) Insert(m Message, raw any) (bool, error) {
-	rawJSON, err := json.Marshal(raw)
-	if err != nil {
-		rawJSON = []byte("null")
+	// 优先存原始请求体全文（保住字段顺序与格式），没有才退回序列化 payload
+	rawJSON := []byte(m.Raw)
+	if len(rawJSON) == 0 {
+		var err error
+		rawJSON, err = json.Marshal(raw)
+		if err != nil {
+			rawJSON = []byte("null")
+		}
 	}
 	res, err := s.db.Exec(
 		`INSERT OR IGNORE INTO messages (id, source, title, body, level, ts, raw) VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -77,7 +85,7 @@ func (s *Store) Insert(m Message, raw any) (bool, error) {
 
 func (s *Store) List(before int64, limit int) ([]Message, error) {
 	rows, err := s.db.Query(
-		`SELECT id, source, title, body, level, ts FROM messages WHERE ts < ? ORDER BY ts DESC LIMIT ?`,
+		`SELECT id, source, title, body, level, ts, COALESCE(raw, '') FROM messages WHERE ts < ? ORDER BY ts DESC LIMIT ?`,
 		before, limit,
 	)
 	if err != nil {
@@ -88,7 +96,7 @@ func (s *Store) List(before int64, limit int) ([]Message, error) {
 	out := make([]Message, 0, limit)
 	for rows.Next() {
 		var m Message
-		if err := rows.Scan(&m.ID, &m.Source, &m.Title, &m.Body, &m.Level, &m.Ts); err != nil {
+		if err := rows.Scan(&m.ID, &m.Source, &m.Title, &m.Body, &m.Level, &m.Ts, &m.Raw); err != nil {
 			return nil, err
 		}
 		out = append(out, m)

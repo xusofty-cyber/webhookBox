@@ -8,6 +8,13 @@ import (
 	"time"
 )
 
+// 正文/标题上限：只防极端大 payload 撑爆广播帧，正常 webhook 远达不到。
+// 完整内容另外存放在 Message.Raw 里，截断预览不等于丢数据。
+const (
+	bodyMax  = 20000
+	titleMax = 300
+)
+
 // normalize 把各平台 payload 压成统一的 {title, body, level}。
 // 字段抽取逻辑与 worker/src/normalize.ts 一一对应，换后端不影响 App。
 func normalize(source string, payload any, body []byte, h http.Header) Message {
@@ -64,10 +71,11 @@ func normalize(source string, payload any, body []byte, h http.Header) Message {
 		return Message{
 			ID:     id,
 			Source: "github",
-			Title:  clamp(title, 120),
-			Body:   clamp(text, 2000),
+			Title:  clamp(title, titleMax),
+			Body:   clamp(text, bodyMax),
 			Level:  level,
 			Ts:     now,
+			Raw:    string(body),
 		}
 	}
 
@@ -96,12 +104,13 @@ func normalize(source string, payload any, body []byte, h http.Header) Message {
 		Source: source,
 		Title: clamp(firstNonEmpty(
 			str(root["title"]), str(root["subject"]), str(root["name"]), source+" 通知",
-		), 120),
+		), titleMax),
 		Body: clamp(firstNonEmpty(
 			str(root["body"]), str(root["text"]), str(root["message"]), str(root["content"]),
-		), 2000),
+		), bodyMax),
 		Level: level,
 		Ts:    ts,
+		Raw:   string(body),
 	}
 }
 
