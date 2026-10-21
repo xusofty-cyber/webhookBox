@@ -1,0 +1,24 @@
+name = "hookbox-relay"
+main = "src/index.ts"
+compatibility_date = "2025-07-01"
+
+# 消息历史 + 幂等去重
+[[d1_databases]]
+binding = "DB"
+database_name = "hookbox"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+# WebSocket 长连接中枢（空闲时自动休眠，不计费）
+[[durable_objects.bindings]]
+name = "HUB"
+class_name = "Hub"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Hub"]
+
+[vars]
+# 敏感值不要写在这里，用 secret 注入：
+#   wrangler secret put RELAY_TOKEN
+#   wrangler secret put GITHUB_SECRET
+#   wrangler secret put GENERIC_SECRET

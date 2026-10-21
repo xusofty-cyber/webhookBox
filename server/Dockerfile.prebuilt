@@ -1,0 +1,23 @@
+# 注意：这台机器拉不到 Docker Hub（daemon.json 里配的四个加速源全部失效），
+# 所以基底用本地已有的 node:18-slim（本质是 Debian bookworm-slim）。
+# 我们的程序是 CGO_ENABLED=0 的静态 Go 二进制，运行时跟 node 没有关系，
+# 只是借它的根文件系统、ca-certificates 和一个现成的非 root 用户。
+#
+# 如果你在能连 Docker Hub 的机器上构建，把下面第一行换成：
+#   FROM alpine:3.20
+# 并且把 /home/node/app 改成 /app、/home/node/data 改成 /data 即可。
+FROM node:18-slim
+
+WORKDIR /home/node/app
+COPY --chown=node:node hookbox-linux-amd64 /home/node/app/hookbox
+# data 目录必须一起 chown：命名卷首次挂载会继承镜像里该目录的属主，
+# 否则 node 用户写不进去，SQLite 会报 "unable to open database file"
+RUN chmod +x /home/node/app/hookbox \
+ && mkdir -p /home/node/data \
+ && chown -R node:node /home/node/app /home/node/data
+
+ENV DB_PATH=/home/node/data/hookbox.db
+EXPOSE 8080
+USER node
+
+ENTRYPOINT ["/home/node/app/hookbox"]

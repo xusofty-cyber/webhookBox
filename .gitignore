@@ -1,0 +1,25 @@
+# 构建产物
+node_modules/
+.gradle/
+build/
+local.properties
+dist/
+
+# toolchain
+.wrangler/
+
+# IDE / OS
+*.iml
+.idea/
+.DS_Store
+
+# 部署产物与密钥（不要入库）
+**/.env
+*.keystore
+*.jks
+android/keystore.properties
+worker/wrangler.toml.local
+server/hookbox-linux-*
+
+# 含服务器地址等敏感信息的内部分发文档
+docs/内部部署记录.md

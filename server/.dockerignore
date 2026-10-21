@@ -1,0 +1,7 @@
+hookbox-linux-amd64
+hookbox-linux-arm64
+data/
+.env
+*.db
+*.db-wal
+*.db-shm

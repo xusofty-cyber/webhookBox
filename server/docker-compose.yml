@@ -1,0 +1,30 @@
+name: hookbox
+
+services:
+  relay:
+    build:
+      context: .
+      dockerfile: Dockerfile.prebuilt
+    image: hookbox-relay:0.1.0
+    container_name: hookbox-relay
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      ADDR: ":8080"
+      DB_PATH: "/home/node/data/hookbox.db"
+    volumes:
+      - hookbox-data:/home/node/data
+    # 只监听回环，交给宿主机 nginx 做 TLS 入口。
+    # 要让外网直连就改成 "18080:8080"，但那样是明文 HTTP。
+    ports:
+      - "127.0.0.1:18080:8080"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  hookbox-data:

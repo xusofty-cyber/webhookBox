@@ -1,0 +1,4 @@
+-keepattributes *Annotation*
+-keep class com.hookbox.app.data.** { *; }
+-dontwarn okhttp3.**
+-dontwarn okio.**
