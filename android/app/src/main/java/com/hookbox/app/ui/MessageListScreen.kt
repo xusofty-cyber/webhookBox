@@ -1,5 +1,6 @@
 package com.hookbox.app.ui
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -63,7 +64,7 @@ import com.hookbox.app.net.describe
  * 控制类操作（启停、地址）全部收进设置页，不再常驻占版面。
  * 列表行只是预览，点进详情页看完整内容。
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun MessageListScreen(
     messages: List<Message>,
