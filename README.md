@@ -104,6 +104,22 @@ POST 200 {"ok":true,"duplicate":false}
 没有签名头 401 {"ok":false,"error":"missing_signature"}
 ```
 
+### 往已部署的服务发测试消息
+
+`scripts/` 下有四份工具，不依赖任何第三方包：
+
+```bash
+export RELAY_TOKEN=<你的token>
+./scripts/send-test.sh              # 健康检查 + 投递 + 落库回查
+./scripts/send-test.sh -w           # 顺带挂 WebSocket，看实时推送
+node scripts/watch.js <地址> <token> # 只监听，不发
+./scripts/local-dev.sh              # 本地起隔离实例（需 Go）
+```
+
+Windows 原生 PowerShell 用 `.\scripts\send-test.ps1`，装了 VS Code REST Client 插件可以用 `scripts/test.http` 点着发。
+
+细节和返回码对照见 [`scripts/README.md`](scripts/README.md)。
+
 
 ## 三、构建 App
 
@@ -149,6 +165,12 @@ GitHub 等平台 10 秒超时就重投，重投又触发新一轮。所以写库
 
 ```
 docs/              部署文档、使用说明（存档用，服务器上也有一份）
+scripts/           测试工具
+  send-test.sh       发测试消息（健康检查 + 投递 + 回查）
+  send-test.ps1      同上，Windows 原生 PowerShell
+  watch.js           单独监听 WebSocket
+  test.http          REST Client 请求集合
+  local-dev.sh       本地起隔离实例
 worker/            Cloudflare Worker 中转层（TypeScript）
   src/index.ts      路由
   src/hook.ts       收 webhook 主流程

@@ -4,6 +4,7 @@ node_modules/
 build/
 local.properties
 dist/
+out/
 
 # toolchain
 .wrangler/
@@ -20,6 +21,9 @@ dist/
 android/keystore.properties
 worker/wrangler.toml.local
 server/hookbox-linux-*
+server/hookbox-local
+server/hookbox-local.exe
+server/local-data/
 
 # 含服务器地址等敏感信息的内部分发文档
 docs/内部部署记录.md

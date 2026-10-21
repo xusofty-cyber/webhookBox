@@ -1,0 +1,121 @@
+### HookBox 接口测试集合
+### 用法：VS Code 装 "REST Client" 插件，或直接用 JetBrains 的 HTTP Client，
+###       点每个请求上方的 "Send Request" 即可。
+###
+### token 从哪里拿：登录服务器 `grep RELAY_TOKEN ~/projects/hookbox/.env`，
+###                 或看本地 server/.env。
+### 这里刻意留空，不要把它提交到公开仓库。
+
+@base  = https://your-domain.com/hookbox
+@token = 在这里粘贴你的 RELAY_TOKEN
+@source = manual-test
+
+### 1. 健康检查（先确认服务活着）
+GET {{base}}/healthz
+
+### 2. 发一条普通消息
+POST {{base}}/hook/{{source}}?token={{token}}
+Content-Type: application/json
+
+{
+  "title": "来自 REST Client",
+  "body": "如果你在手机上看到这条，链路是通的",
+  "level": "info"
+}
+
+### 3. 发一条警告（App 里会用不同颜色标记）
+POST {{base}}/hook/{{source}}?token={{token}}
+Content-Type: application/json
+
+{
+  "title": "磁盘快满了",
+  "body": "/ 使用率 91%",
+  "level": "warn"
+}
+
+### 4. 发一条错误
+POST {{base}}/hook/{{source}}?token={{token}}
+Content-Type: application/json
+
+{
+  "title": "构建失败",
+  "body": "acme/api 的 main 分支构建失败",
+  "level": "error"
+}
+
+### 5. 只发标题（body 可省略）
+POST {{base}}/hook/{{source}}?token={{token}}
+Content-Type: application/json
+
+{
+  "title": "最短的一条消息"
+}
+
+### 6. 验证幂等：连点两次，第二次应返回 duplicate:true
+POST {{base}}/hook/idempotency-demo?token={{token}}
+Content-Type: application/json
+
+{
+  "title": "固定内容",
+  "body": "这个 body 每次都一样，所以只有第一次会真正入库"
+}
+
+### 7. 错误 token（预期 401）
+POST {{base}}/hook/{{source}}?token=wrong-token
+Content-Type: application/json
+
+{
+  "title": "这条应该被拒绝"
+}
+
+### 8. 查历史消息
+GET {{base}}/api/messages?token={{token}}&limit=10
+
+### 9. 按来源过滤历史
+GET {{base}}/api/messages?token={{token}}&source={{source}}&limit=5
+
+### 10. 模拟 GitHub push 事件（走归一化逻辑）
+###     注意：如果服务端配了 GITHUB_SECRET，这个请求会因缺签名被 401 拒绝
+POST {{base}}/hook/github?token={{token}}
+Content-Type: application/json
+X-GitHub-Event: push
+X-GitHub-Delivery: rest-client-demo-{{$timestamp}}
+
+{
+  "ref": "refs/heads/main",
+  "repository": { "full_name": "acme/api" },
+  "pusher": { "name": "alice" },
+  "commits": [
+    { "message": "fix: 修正登录超时", "author": { "name": "alice" } }
+  ]
+}
+
+### 11. 模拟 GitHub workflow_run 失败（应被标成 level:error）
+POST {{base}}/hook/github?token={{token}}
+Content-Type: application/json
+X-GitHub-Event: workflow_run
+X-GitHub-Delivery: rest-client-demo-wf-{{$timestamp}}
+
+{
+  "action": "completed",
+  "workflow_run": {
+    "name": "build",
+    "conclusion": "failure",
+    "head_branch": "main"
+  },
+  "repository": { "full_name": "acme/api" }
+}
+
+### 12. 带 HMAC 签名的请求
+###     签名 = HMAC-SHA256(secret, 原始 body) 的十六进制，前缀 "sha256="
+###     ⚠️ 签名必须对「实际发送的字节」计算，改一个空格就失效。
+###     最省事的做法：用 scripts/send-test.sh，它不校验签名走 URL token 兜底；
+###     要专门测签名就用 worker/test/github-signature.mjs 那个脚本。
+POST {{base}}/hook/github
+Content-Type: application/json
+X-GitHub-Event: push
+X-Hub-Signature-256: sha256=把这里换成真实签名
+
+{
+  "ref": "refs/heads/main"
+}
