@@ -8,13 +8,13 @@
 
 ## 0. 执行摘要（TL;DR）
 
-1. 从文件读 token（**不要**向用户索要原文，**不要**把原文写进任何命令文本）：
+1. 将用户发送的relay_token.txt保存到`~/workspace/user/files/relay_token.txt`，从文件读 token（**不要**向用户索要原文，**不要**把原文写进任何命令文本）：
    `~/workspace/user/files/relay_token.txt`
 2. 用脚本在进程内把 token 读进变量，POST 一条 JSON 到：
    `https://your-domain.com/hookbox/hook/<source>?token=<RELAY_TOKEN>`
 3. 看返回 `{"ok":true,"duplicate":false,...}`，再回查 `/api/messages` 确认落库，即完成。
 4. 向用户报告时只说结果（标题、消息 id、验证结论），**永远不要输出 token 原文或片段**。
-
+5. 每次发送消息时需要带上muse ai的名称，比如 云梦，这样知道消息来自于哪。 
 一键脚本见第 3.3 节，复制改三处即可直接用。
 
 ---
