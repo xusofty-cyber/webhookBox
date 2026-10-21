@@ -6,7 +6,12 @@ on:
     paths:
       - "android/**"
       - ".github/workflows/android.yml"
+  release:
+    types: [published]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -42,9 +47,21 @@ jobs:
             --stacktrace \
             -PrelayToken="$RELAY_TOKEN"
 
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: hookbox-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      # 发 Release 时触发的构建：把 APK 改名带上 tag，挂到对应 Release 下供直接下载
+      - name: Name APK for release
+        if: github.event_name == 'release'
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk "hookbox-${{ github.event.release.tag_name }}.apk"
+
+      - name: Attach APK to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: hookbox-${{ github.event.release.tag_name }}.apk
+          fail_on_unmatched_files: true
