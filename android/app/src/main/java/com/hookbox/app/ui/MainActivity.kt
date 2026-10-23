@@ -12,6 +12,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.lifecycleScope
+import com.hookbox.app.App
+import com.hookbox.app.service.RelayService
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -21,6 +26,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        ensureRelayRunning()
         pendingMessageId = intent?.getStringExtra(EXTRA_MESSAGE_ID)
         setContent {
             HookBoxTheme {
@@ -31,6 +37,18 @@ class MainActivity : ComponentActivity() {
                     HookBoxApp(externalMessageId = pendingMessageId)
                 }
             }
+        }
+    }
+
+    /**
+     * 每次打开界面都补查一遍：开关是开的就确保服务在跑。
+     * 覆盖「进程还活着、但服务已被系统单独停掉」的场景（App.onCreate 不会再执行）。
+     * RelayService.start 是幂等的，服务已在运行时不会重复建连。
+     */
+    private fun ensureRelayRunning() {
+        lifecycleScope.launch {
+            val enabled = runCatching { App.settings.config.first().enabled }.getOrDefault(false)
+            if (enabled) runCatching { RelayService.start(this@MainActivity) }
         }
     }
 
