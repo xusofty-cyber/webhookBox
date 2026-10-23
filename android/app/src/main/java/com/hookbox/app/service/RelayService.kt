@@ -24,11 +24,15 @@ import com.hookbox.app.net.describe
 import com.hookbox.app.ui.MainActivity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -81,29 +85,45 @@ class RelayService : LifecycleService() {
                 continue
             }
 
-            RelayConnection(
-                baseUrl = config.baseUrl,
-                token = config.token,
-                onFrame = ::handleFrame,
-                onState = { state ->
-                    updateState(state)
-                    updateOngoing(state.describe())
-                    if (state == ConnState.Connected) {
-                        if (!backfilled) {
-                            backfilled = true
-                            lifecycleScope.launch {
-                                runCatching {
-                                    HistoryFetcher.fetchRecent(config.baseUrl, config.token) { message ->
-                                        withContext(Dispatchers.IO) { App.db.messageDao().insert(message) }
+            // 连接存续期间盯着配置：地址或 token 被改掉，就结束本次连接，
+            // 由外层循环用新配置重新连。RelayConnection 内部是无限重连循环、
+            // 启动后不会自己回来重读配置，没有这个监听的话，用户在设置里
+            // 改了地址/token 点「保存并连接」也不会生效，只能关开一次开关。
+            coroutineScope {
+                val connection = launch {
+                    RelayConnection(
+                        baseUrl = config.baseUrl,
+                        token = config.token,
+                        onFrame = ::handleFrame,
+                        onState = { state ->
+                            updateState(state)
+                            updateOngoing(state.describe())
+                            if (state == ConnState.Connected) {
+                                if (!backfilled) {
+                                    backfilled = true
+                                    lifecycleScope.launch {
+                                        runCatching {
+                                            HistoryFetcher.fetchRecent(config.baseUrl, config.token) { message ->
+                                                withContext(Dispatchers.IO) { App.db.messageDao().insert(message) }
+                                            }
+                                        }
                                     }
                                 }
+                            } else {
+                                backfilled = false
                             }
-                        }
-                    } else {
-                        backfilled = false
-                    }
-                },
-            ).run()
+                        },
+                    ).run()
+                }
+                launch {
+                    App.settings.config
+                        .map { it.baseUrl to it.token }
+                        .distinctUntilChanged()
+                        .drop(1)
+                        .first()
+                    connection.cancel()
+                }
+            }
         }
     }
 
