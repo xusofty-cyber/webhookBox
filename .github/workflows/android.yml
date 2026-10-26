@@ -37,27 +37,40 @@ jobs:
         with:
           gradle-version: "8.9"
 
-      - name: Build debug APK
+      # 正式签名：keystore 以 base64 存在仓库 Secrets（ANDROID_KEYSTORE_BASE64），
+      # 密码类 Secrets 为 KEYSTORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD。
+      # 构建前解码到 android/keystore.jks（.gitignore 已排除，绝不入库）。
+      - name: Build release APK
         working-directory: android
         env:
           RELAY_TOKEN: ${{ secrets.RELAY_TOKEN }}
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          gradle assembleDebug \
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > keystore.jks
+          test -s keystore.jks || { echo "keystore is empty, check ANDROID_KEYSTORE_BASE64 secret"; exit 1; }
+          gradle assembleRelease \
             --no-daemon \
             --stacktrace \
             -PrelayToken="$RELAY_TOKEN"
+
+      # 校验签名：未签名或签名不对直接让构建失败，不静默发出无签名包。
+      - name: Verify APK signature
+        run: "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" verify --print-certs android/app/build/outputs/apk/release/app-release.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: hookbox-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
 
       # 发 Release 时触发的构建：把 APK 改名带上 tag，挂到对应 Release 下供直接下载
       - name: Name APK for release
         if: github.event_name == 'release'
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk "hookbox-${{ github.event.release.tag_name }}.apk"
+        run: cp android/app/build/outputs/apk/release/app-release.apk "hookbox-${{ github.event.release.tag_name }}.apk"
 
       - name: Attach APK to release
         if: github.event_name == 'release'
