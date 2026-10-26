@@ -13,8 +13,8 @@ android {
         applicationId = "com.hookbox.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
-        versionName = "0.2.3"
+        versionCode = 6
+        versionName = "0.2.4"
 
         // RELAY_TOKEN 由 CI 的 secret 注入：./gradlew assembleDebug -PrelayToken=xxx
         // 不写死进源码，因为仓库是公开的。本地构建不带这个参数就是空串。

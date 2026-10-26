@@ -122,8 +122,8 @@ fun MessageDetailScreen(
                 }
 
                 Spacer(Modifier.height(10.dp))
-                // 标题：不截断，全量展示
-                Text(
+                // 标题：不截断，全量展示；标题里的链接可点
+                LinkText(
                     message.title,
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -136,8 +136,8 @@ fun MessageDetailScreen(
                     Spacer(Modifier.height(20.dp))
                     SectionTitle("正文")
                     Spacer(Modifier.height(6.dp))
-                    // 正文：不截断，全量展示
-                    Text(
+                    // 正文：不截断，全量展示；里面的链接可点开
+                    LinkText(
                         message.body,
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface,
