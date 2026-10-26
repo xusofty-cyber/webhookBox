@@ -13,8 +13,8 @@ android {
         applicationId = "com.hookbox.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 6
-        versionName = "0.2.4"
+        versionCode = 7
+        versionName = "0.2.5"
 
         // RELAY_TOKEN 由 CI 的 secret 注入：./gradlew assembleDebug -PrelayToken=xxx
         // 不写死进源码，因为仓库是公开的。本地构建不带这个参数就是空串。
@@ -27,11 +27,30 @@ android {
         buildConfig = true
     }
 
+    // 正式签名：密钥和密码只从环境变量读（CI 里来自仓库 Secrets），
+    // 缺失时不创建 signingConfig；工作流里的 apksigner 校验会拦住未签名包，
+    // 不会静默发出无签名 APK。密钥库文件绝不入库（.gitignore 已排除 *.jks），
+    // CI 在构建前从 ANDROID_KEYSTORE_BASE64 解码到 android/keystore.jks。
+    val keystorePassword = System.getenv("KEYSTORE_PASSWORD")
+    val keyAlias = System.getenv("KEY_ALIAS")
+    val keyPassword = System.getenv("KEY_PASSWORD")
+    if (keystorePassword != null && keyAlias != null && keyPassword != null) {
+        signingConfigs {
+            create("release") {
+                storeFile = file("${projectDir}/keystore.jks")
+                storePassword = keystorePassword
+                this.keyAlias = keyAlias
+                this.keyPassword = keyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
             // 关掉混淆：Room 生成的实现类 + Compose 反射容易在 R8 下出问题，
             // 自用场景没必要为省几 MB 冒这个险。
             isMinifyEnabled = false
+            signingConfig = signingConfigs.findByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
