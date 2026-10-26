@@ -1,3 +1,7 @@
+// UrlAnnotation / pushUrlAnnotation / getUrlAnnotations 在 Kotlin 里还是实验性 API，
+// 用文件级 OptIn 声明后才能编译（否则报错 "This API is experimental..."）。
+@file:OptIn(ExperimentalTextApi::class)
+
 package com.hookbox.app.ui
 
 import android.content.Context
@@ -13,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.UrlAnnotation
