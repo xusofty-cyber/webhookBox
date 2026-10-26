@@ -37,7 +37,10 @@ android {
     if (keystorePassword != null && keyAlias != null && keyPassword != null) {
         signingConfigs {
             create("release") {
-                storeFile = file("${projectDir}/keystore.jks")
+                // 注意是 rootDir（android/ 目录），不是 app 模块的 projectDir（android/app/）：
+                // 工作流把 keystore 解码到 android/keystore.jks，写错路径会导致
+                // validateSigningRelease 报 keystore not found。
+                storeFile = file("${rootDir}/keystore.jks")
                 storePassword = keystorePassword
                 this.keyAlias = keyAlias
                 this.keyPassword = keyPassword
