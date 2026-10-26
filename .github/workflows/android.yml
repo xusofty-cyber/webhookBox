@@ -58,7 +58,7 @@ jobs:
 
       # 校验签名：未签名或签名不对直接让构建失败，不静默发出无签名包。
       - name: Verify APK signature
-        run: "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" verify --print-certs android/app/build/outputs/apk/release/app-release.apk
+        run: $ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner verify --print-certs android/app/build/outputs/apk/release/app-release.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
